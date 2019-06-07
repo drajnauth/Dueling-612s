@@ -14,7 +14,6 @@
 #include <Wire.h>  // Comes with Arduino IDE
 
 #include "VE3OOI_Si5351_Signal_Generator.h"   // Defines for this program
-#include "UART.h"                             // VE3OOI Serial Interface Routines (TTY Commands)
 #include "LCD.h"
 #include "Encoder.h"
 #include "Timer.h"
@@ -64,6 +63,7 @@ extern char RootMenuOptions[MAXMENU_ITEMS][MAXMENU_LEN];
 
 extern D612_Struct sg;
 extern Band_Struct mem;
+extern Band_Struct memB;
 
 unsigned char lastLCDSelect[2];
 
@@ -200,6 +200,7 @@ void LCDDisplayRxTx (void)
 void LCDDisplayMenuSmallNumbner (int number, int inc)
 {
   unsigned char pos;
+  
   pos = FrequencyDigitUpdate(inc) + MENU_DISPLAY_SHIFT;
   
   lcd.setCursor(MENU_NUMBER_START,3);
@@ -212,6 +213,7 @@ void LCDDisplayMenuSmallNumbner (int number, int inc)
 void LCDDisplayMenuLargeNumbner (int number, int inc)
 {
   unsigned char pos;
+  
   pos = FrequencyDigitUpdate(inc) + MENU_LARGEDISPLAY_SHIFT;
   
   lcd.setCursor(MENU_NUMBER_START,3);
@@ -231,7 +233,7 @@ void LCDDisplayFreq (void)
   
   lcd.setCursor(FREQ_START,0);
   memset (clkentry, 0, sizeof(clkentry));         // Terminate the string  
-  sprintf (clkentry, "VFO%c:%08lu", mem.VFO, mem.Freq);
+  sprintf (clkentry, "VFO%c:%08lu", sg.VFO, mem.Freq);
   lcd.print( clkentry );
   LCDSelectLine (pos, 0, 1);
 }
@@ -241,16 +243,16 @@ void LCDDisplayVFOBFreq (void)
 {
   unsigned char pos;
   char vfo;
-  pos = FrequencyDigitUpdate(mem.FreqInc) + VFOB_FREQUENCY_DISPLAY_SHIFT;
+  pos = FrequencyDigitUpdate(memB.FreqInc) + VFOB_FREQUENCY_DISPLAY_SHIFT;
   
   lcd.setCursor(VFOB_START,2);
   memset (clkentry, 0, sizeof(clkentry));         // Terminate the string  
-  if (mem.VFO == 'A') {
+  if (sg.VFO == 'A') {
     vfo = 'B';
   } else {
     vfo = 'A';
   }
-  sprintf (clkentry, "VFO%c:%08lu", vfo, mem.FreqB);
+  sprintf (clkentry, "VFO%c:%08lu", vfo, sg.FreqB);
   lcd.print( clkentry );
   LCDSelectLine (pos, 2, 1);
 }

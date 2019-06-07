@@ -8,13 +8,12 @@
 #include "Arduino.h"
 
 #include "VE3OOI_Si5351_Signal_Generator.h"   // Defines for this program
-#include "UART.h"                             // VE3OOI Serial Interface Routines (TTY Commands)
 #include "LCD.h"
 #include "Encoder.h"
 #include "Timer.h"
 
-extern volatile unsigned long flags;
 
+extern volatile unsigned long bflags;
 
 // Encoder Variables
 volatile int enc_states[] = {0, -1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -46,23 +45,21 @@ void SetupEncoder (void)
   // Push Buttons
   pinMode(PBUTTON1, INPUT);         // Push buttons are input
   pinMode(PBUTTON2, INPUT);         // Push buttons are input
-  pinMode(PTTSW_PIN, INPUT_PULLUP); // Enable weak pullup
-
-
+  pinMode(PTT_BUTTON, INPUT_PULLUP); // Enable weak pullup
 
   // Push Button Debounce
   pttstate = pb1state = pb2state = HIGH;            // the current state of the push button
   oldpttstate = oldpb1state = oldpb2state = HIGH;   // the last reading from the push button
   ptttime = pb1time = pb2time = 0;                  // the last time the push button state changed
 
-  flags &= ~PTT_PUSHED;
-  flags &= ~PBUTTON1_PUSHED;
-  flags &= ~PBUTTON2_PUSHED;
-  flags &= ~ROTARY_CW;
-  flags &= ~ROTARY_CCW;
-  flags &= ~ROTARY_PUSH;
+  bflags &= ~PTT_PUSHED;
+  bflags &= ~PBUTTON1_PUSHED;
+  bflags &= ~PBUTTON2_PUSHED;
+  bflags &= ~ROTARY_CW;
+  bflags &= ~ROTARY_CCW;
+  bflags &= ~ROTARY_PUSH;
 
-  EnableTimers (1, TIMER1MS);         // Timer 1 is for Rotary & Pushbutton
+  EnableTimers (1, TIMER3MS);         // Timer 1 is for Rotary & Pushbutton
 
   ResetEncoder ();
   
@@ -86,7 +83,7 @@ void CheckPushButtons (void)
 {
   pb1current = digitalRead(PBUTTON1);
   pb2current = digitalRead(PBUTTON2);
-  pttcurrent = digitalRead(PTTSW_PIN);
+  pttcurrent = digitalRead(PTT_BUTTON);
 
   mscurrent = millis();
 
@@ -96,6 +93,7 @@ void CheckPushButtons (void)
   if (pb2current != oldpb2state) {
     pb2time = mscurrent;
   } 
+  
   if (pttcurrent != oldpttstate) {
     ptttime = mscurrent;
   }
@@ -103,9 +101,9 @@ void CheckPushButtons (void)
   if ((mscurrent - pb1time) > PBDEBOUNCE) {
     if (pb1current != pb1state) {
       pb1state = pb1current;
-      if (pb1state == PBUTTON_STATE && !(flags & PBUTTON1_PUSHED) ) {
+      if (pb1state == PBUTTON_STATE && !(bflags & PBUTTON1_PUSHED) ) {
         digitalWrite(LED_BUILTIN, HIGH);
-        flags |= PBUTTON1_PUSHED;
+        bflags |= PBUTTON1_PUSHED;
       }
     }
   }
@@ -114,20 +112,23 @@ void CheckPushButtons (void)
   if ((mscurrent - pb2time) > PBDEBOUNCE) {
     if (pb2current != pb2state) {
       pb2state = pb2current;
-      if (pb2state == PBUTTON_STATE && !(flags & PBUTTON2_PUSHED) ) {
+      if (pb2state == PBUTTON_STATE && !(bflags & PBUTTON2_PUSHED) ) {
         digitalWrite(LED_BUILTIN, HIGH);
-        flags |= PBUTTON2_PUSHED;
+        bflags |= PBUTTON2_PUSHED;
       }
     }
   }
   oldpb2state = pb2current;
 
-  if ((mscurrent - ptttime) > PBDEBOUNCE) {
+  if ((mscurrent - ptttime) > PTTDEBOUNCE) {
     if (pttcurrent != pttstate) {
       pttstate = pttcurrent;
-      if (pttstate == PBUTTON_STATE && !(flags & PTT_PUSHED) ) {
+      if (pttstate == PBUTTON_STATE && !(bflags & PTT_PUSHED) ) {
         digitalWrite(LED_BUILTIN, HIGH);
-        flags |= PTT_PUSHED;
+        bflags |= PTT_PUSHED;
+      } else if (pttstate != PBUTTON_STATE && !(bflags & PTT_CLEAR) ) {
+        digitalWrite(LED_BUILTIN, HIGH);
+        bflags |= PTT_CLEAR;
       }
     }
   }
@@ -144,7 +145,7 @@ void CheckEncoder (void)
   int retvalue;
   
   // May overrun so don't process if flags has not been cleared (i.e. last update processed)
-  if ( (flags & ROTARY_CCW) || (flags & ROTARY_CW)) {
+  if ( (bflags & ROTARY_CCW) || (bflags & ROTARY_CW)) {
     return;
   }
 
@@ -153,11 +154,11 @@ void CheckEncoder (void)
   // Check for rotation or push
   retvalue = ReadEncoder();        // Returns 0, 1 or -1
   if (retvalue < 0) {
-    flags |= ROTARY_CCW;
+    bflags |= ROTARY_CCW;
     digitalWrite(LED_BUILTIN, HIGH);  
     
   } else if (retvalue > 0) {
-    flags |= ROTARY_CW;
+    bflags |= ROTARY_CW;
     digitalWrite(LED_BUILTIN, HIGH);
 
     
@@ -198,7 +199,7 @@ void ReadPBEncoder(void)
   // pbreset is used to reset frequency for a long rotaty button push
   if (!button && !pbstate) {                            // Button pushed and relax condition met
     pbstate = PUSH_BUTTON_RELAXATION;                  // Reset counter for relaxation period
-    flags |= ROTARY_PUSH;
+    bflags |= ROTARY_PUSH;
     pbstate = PBDEBOUNCE;
 
   // Relaxation period
@@ -210,7 +211,7 @@ void ReadPBEncoder(void)
   // If button pushed for a long time, reset frequencies back to default
   if (!button) {            // Button continually pushed 
     if (pbreset++ > PUSH_BUTTON_RESET) {
-      flags |= MASTER_RESET;
+      bflags |= MASTER_RESET;
       pbreset = 0;
     }
   }

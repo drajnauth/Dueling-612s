@@ -16,24 +16,25 @@
 #include <SPI.h>               // Needed to communitate I2C to Si5351
 
 #include "VE3OOI_Si5351_Signal_Generator.h"   // Defines for this program
-#include "UART.h"                             // VE3OOI Serial Interface Routines (TTY Commands)
 #include "LCD.h"
 #include "Encoder.h"
 #include "Timer.h"
 
-extern volatile unsigned long flags;
-
+extern volatile unsigned long mflags;
 
 //////////////////////////////////
 // Timer1 ISR - TBD
 //////////////////////////////////
 ISR(TIMER1_COMPA_vect)
 {
-  if (!(flags & DISABLE_BUTTONS)) {
+  if (!(mflags & DISABLE_BUTTONS)) {
     CheckEncoder();  
     CheckPushButtons ();  
     ReadPBEncoder();
   }
+
+
+  
 }
 
 
@@ -54,7 +55,7 @@ void EnableTimers (unsigned char timer, unsigned int count)
 {
 // Note timers enabled via TCCRnB register, must set a non-zero prescalar to enable
 // Arduino uses Timer 0 for serial printing and for delay and other timing functions. Be carefull
-
+  
   cli();          // disable global interrupts
   switch (timer) {
     case 0:
